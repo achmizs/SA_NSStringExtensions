@@ -60,7 +60,7 @@
 }
 
 - (NSArray <NSString *> *)componentsSplitByWhitespaceWithMaxSplits:(NSUInteger)maxSplits
-{
+{	
 	if(maxSplits == 0)
 	{
 		return [NSMutableArray arrayWithObject:self];
