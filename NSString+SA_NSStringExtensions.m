@@ -1,10 +1,8 @@
 //
 //  NSString+SA_NSStringExtensions.m
-//  RPGBot
 //
-//  Created by Said Achmiz on 12/31/15.
-//
-//
+//  Copyright 2015-2021 Said Achmiz.
+//  See LICENSE and README.md for more info.
 
 #import "NSString+SA_NSStringExtensions.h"
 
