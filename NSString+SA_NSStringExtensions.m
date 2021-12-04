@@ -347,29 +347,29 @@ static BOOL _SA_NSStringExtensions_RaiseRegularExpressionCreateException = YES;
 	if (maxSplits == 0)
 		return @[ self ];
 
-	static NSRegularExpression *regexp;
+	static NSRegularExpression *regex;
 	static dispatch_once_t onceToken;
 	dispatch_once(&onceToken, ^{
-		regexp = [@"(?:^|\\S|$)+" regularExpression];
+		regex = [@"^\\S*|(?<=\\s)$|\\S+" regularExpression];
 	});
 
 	NSMutableArray <NSString *> *components = [NSMutableArray array];
-	[regexp enumerateMatchesInString:self
-							 options:(NSMatchingOptions) 0
-							   range:self.fullRange
-						  usingBlock:^(NSTextCheckingResult * _Nullable result,
-									   NSMatchingFlags flags,
-									   BOOL * _Nonnull stop) {
-							  if (   dropEmptyString
-								  && result.range.length == 0) {
-								  // Nothing.
-							  } else if (components.count < maxSplits) {
-								  [components addObject:[self substringWithRange:result.range]];
-							  } else {
-								  [components addObject:[self substringWithRange:[self rangeToEndFrom:result.range]]];
-								  *stop = YES;
-							  }
-						  }];
+	[regex enumerateMatchesInString:self
+							options:(NSMatchingOptions) 0
+							  range:self.fullRange
+						 usingBlock:^(NSTextCheckingResult * _Nullable result,
+									  NSMatchingFlags flags,
+									  BOOL * _Nonnull stop) {
+							 if (   dropEmptyString
+								 && result.range.length == 0) {
+								 // Nothing.
+							 } else if (components.count < maxSplits) {
+								 [components addObject:[self substringWithRange:result.range]];
+							 } else {
+								 [components addObject:[self substringWithRange:[self rangeToEndFrom:result.range]]];
+								 *stop = YES;
+							 }
+						 }];
 	return components;
 }
 
@@ -533,9 +533,9 @@ static BOOL _SA_NSStringExtensions_RaiseRegularExpressionCreateException = YES;
 
 -(NSRegularExpression *) regularExpressionWithOptions:(NSRegularExpressionOptions)options {
 	NSError *error;
-	NSRegularExpression *regexp = [NSRegularExpression regularExpressionWithPattern:self
-																			options:options
-																			  error:&error];
+	NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:self
+																		   options:options
+																			 error:&error];
 	if (error) {
 		if (NSString.SA_NSStringExtensions_RaiseRegularExpressionCreateException == YES)
 			[NSException raise:@"SA_NSStringExtensions_RegularExpressionCreateException"
@@ -544,7 +544,7 @@ static BOOL _SA_NSStringExtensions_RaiseRegularExpressionCreateException = YES;
 		return nil;
 	}
 
-	return regexp;
+	return regex;
 }
 
 /**********************************************/
@@ -552,48 +552,45 @@ static BOOL _SA_NSStringExtensions_RaiseRegularExpressionCreateException = YES;
  **********************************************/
 
 -(NSArray <NSString *> *) matchesForRegex:(NSRegularExpression *)regex {
-	NSMutableArray <NSString *> *matches = [NSMutableArray arrayWithCapacity:regex.numberOfCaptureGroups];
-	[regex enumerateMatchesInString:self
-							options:(NSMatchingOptions) 0
-							  range:self.fullRange
-						 usingBlock:^(NSTextCheckingResult * _Nullable result,
-									  NSMatchingFlags flags,
-									  BOOL *stop) {
-							 [NSIndexSet from:0
-										  for:result.numberOfRanges
-										   do:^(NSUInteger idx) {
-								 NSString *resultString = ([result rangeAtIndex:idx].location == NSNotFound
-														   ? @""
-														   : [self substringWithRange:[result rangeAtIndex:idx]]);
-								 [matches addObject:resultString];
-							 }];
+	return [self matchesForRegex:regex
+							 all:NO];
 
-							 *stop = YES;
-						 }];
-	return matches;
 }
 
 -(NSArray <NSArray <NSString *> *> *) allMatchesForRegex:(NSRegularExpression *)regex {
-	NSMutableArray <NSMutableArray <NSString *> *> *matches = [NSMutableArray arrayWithCapacity:regex.numberOfCaptureGroups];
-	[NSIndexSet from:0
-				 for:regex.numberOfCaptureGroups
-				  do:^(NSUInteger idx) {
-		[matches addObject:[NSMutableArray array]];
-	}];
+	return [self matchesForRegex:regex
+							 all:YES];
+}
+
+/* Helper method (private).
+ */
+-(NSArray *) matchesForRegex:(NSRegularExpression *)regex
+						 all:(BOOL)all {
+	NSMutableArray *matches = [NSMutableArray array];
 	[regex enumerateMatchesInString:self
 							options:(NSMatchingOptions) 0
 							  range:self.fullRange
 						 usingBlock:^(NSTextCheckingResult * _Nullable result,
 									  NSMatchingFlags flags,
 									  BOOL *stop) {
+							 if (all)
+								 [matches addObject:[NSMutableArray array]];
+
 							 [NSIndexSet from:0
 										  for:result.numberOfRanges
 										   do:^(NSUInteger idx) {
 											   NSString *resultString = ([result rangeAtIndex:idx].location == NSNotFound
 																		 ? @""
 																		 : [self substringWithRange:[result rangeAtIndex:idx]]);
-											   [matches[idx] addObject:resultString];
+											   if (all) {
+												   [((NSMutableArray *) matches.lastObject) addObject:resultString];
+											   } else {
+												   [matches addObject:resultString];
+											   }
 										   }];
+
+							 if (!all)
+								 *stop = YES;
 						 }];
 	return matches;
 }
@@ -636,17 +633,17 @@ static BOOL _SA_NSStringExtensions_RaiseRegularExpressionCreateException = YES;
 										   withTemplate:(NSString *)template
 							   regularExpressionOptions:(NSRegularExpressionOptions)regexpOptions
 										matchingOptions:(NSMatchingOptions)matchingOptions {
-	NSRegularExpression *regexp = [pattern regularExpressionWithOptions:regexpOptions];
-	NSTextCheckingResult *match = [regexp firstMatchInString:self
-													 options:matchingOptions
-													   range:self.fullRange];
+	NSRegularExpression *regex = [pattern regularExpressionWithOptions:regexpOptions];
+	NSTextCheckingResult *match = [regex firstMatchInString:self
+													options:matchingOptions
+													  range:self.fullRange];
 	if (   match
 		&& match.range.location != NSNotFound) {
 		return [self stringByReplacingCharactersInRange:match.range
-											 withString:[regexp replacementStringForResult:match
-																				  inString:self
-																					offset:0
-																				  template:template]];
+											 withString:[regex replacementStringForResult:match
+																				 inString:self
+																				   offset:0
+																				 template:template]];
 	} else {
 		return self;
 	}
@@ -813,16 +810,16 @@ static BOOL _SA_NSStringExtensions_RaiseRegularExpressionCreateException = YES;
 						   withTemplate:(NSString *)template
 			   regularExpressionOptions:(NSRegularExpressionOptions)regexpOptions
 						matchingOptions:(NSMatchingOptions)matchingOptions {
-	NSRegularExpression *regexp = [pattern regularExpressionWithOptions:regexpOptions];
-	NSTextCheckingResult *match = [regexp firstMatchInString:self
-													 options:matchingOptions
-													   range:self.fullRange];
+	NSRegularExpression *regex = [pattern regularExpressionWithOptions:regexpOptions];
+	NSTextCheckingResult *match = [regex firstMatchInString:self
+													options:matchingOptions
+													  range:self.fullRange];
 	if (   match
 		&& match.range.location != NSNotFound) {
-		NSString *replacementString = [regexp replacementStringForResult:match
-																inString:self
-																  offset:0
-																template:template];
+		NSString *replacementString = [regex replacementStringForResult:match
+															   inString:self
+																 offset:0
+															   template:template];
 		[self replaceCharactersInRange:match.range
 							withString:replacementString];
 	}
