@@ -1,7 +1,7 @@
-NSData+SA_NSStringExtensions
+NSString+SA_NSStringExtensions
 
 Adds utility functions to NSString.
 
-This category on NSData adds methods for splitting by whitespace, finding whitespace, and checking whether a string contains characters from an NSSet or another NSString.
+This category on NSString adds many utility methods.
 
-Copyright (c) 2015 Said Achmiz.
+Copyright 2015-2021 Said Achmiz.
