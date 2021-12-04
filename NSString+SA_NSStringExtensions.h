@@ -36,14 +36,15 @@
 #pragma mark - Trimming
 /**********************/
 
-/*	“Smart” trimming.
- */
 typedef NS_OPTIONS(NSUInteger, SA_NSStringTrimmingOptions) {
 	SA_NSStringTrimming_CollapseWhitespace		= 1 << 0,
 	SA_NSStringTrimming_TrimWhitespace			= 1 << 1,
 	SA_NSStringTrimming_AppendEllipsis			= 1 << 2,
 	SA_NSStringTrimming_ElideEllipsisWhenEmpty	= 1 << 3
 };
+
+/*	“Smart” trimming.
+ */
 -(NSString *) stringByTrimmingToMaxLengthInBytes:(NSUInteger)maxLengthInBytes
 								   usingEncoding:(NSStringEncoding)encoding
 					withStringEnumerationOptions:(NSStringEnumerationOptions)enumerationOptions
@@ -118,6 +119,8 @@ typedef NS_OPTIONS(NSUInteger, SA_NSStringTrimmingOptions) {
  */
 -(NSArray <NSString *> *) componentsSplitByWhitespace;
 -(NSArray <NSString *> *) componentsSplitByWhitespaceWithMaxSplits:(NSUInteger)maxSplits;
+-(NSArray <NSString *> *) componentsSplitByWhitespaceWithMaxSplits:(NSUInteger)maxSplits
+												   dropEmptyString:(BOOL)dropEmptyString;
 
 /*	Splitting by specified delimiter string.
  */

@@ -332,65 +332,104 @@ static BOOL _SA_NSStringExtensions_RaiseRegularExpressionCreateException = YES;
 /***********************/
 
 -(NSArray <NSString *> *) componentsSplitByWhitespace {
-	return [self componentsSplitByWhitespaceWithMaxSplits:NSUIntegerMax];
+	return [self componentsSplitByWhitespaceWithMaxSplits:NSUIntegerMax
+										  dropEmptyString:YES];
 }
 
 -(NSArray <NSString *> *) componentsSplitByWhitespaceWithMaxSplits:(NSUInteger)maxSplits {
-	if (maxSplits == 0) {
+	return [self componentsSplitByWhitespaceWithMaxSplits:maxSplits
+										  dropEmptyString:YES];
+}
+
+-(NSArray <NSString *> *) componentsSplitByWhitespaceWithMaxSplits:(NSUInteger)maxSplits
+												   dropEmptyString:(BOOL)dropEmptyString {
+	// No need to do anything fancy in this case.
+	if (maxSplits == 0)
 		return @[ self ];
-	}
-	
+
+	static NSRegularExpression *regexp;
+	static dispatch_once_t onceToken;
+	dispatch_once(&onceToken, ^{
+		regexp = [@"(?:^|\\S|$)+" regularExpression];
+	});
+
 	NSMutableArray <NSString *> *components = [NSMutableArray array];
-	
-	__block NSUInteger tokenStart;
-	__block NSUInteger tokenEnd;
-	__block BOOL currentlyInToken = NO;
-	__block NSRange tokenRange = NSMakeRange(NSNotFound, 0);
-	
-	__block NSUInteger splits = 0;
-	
-	[self enumerateSubstringsInRange:self.fullRange
-							 options:NSStringEnumerationByComposedCharacterSequences
-						  usingBlock:^(NSString *character,
-									   NSRange characterRange,
-									   NSRange enclosingRange,
-									   BOOL *stop) {
-		 if (   currentlyInToken == NO
-			 && [character containsCharactersInSet:[[NSCharacterSet whitespaceCharacterSet] invertedSet]]
-			 ) {
-			 currentlyInToken = YES;
-			 tokenStart = characterRange.location;
-		 } else if (   currentlyInToken == YES
-					&& [character containsCharactersInSet:[NSCharacterSet whitespaceCharacterSet]]
-					) {
-			 currentlyInToken = NO;
-			 tokenEnd = characterRange.location;
-			 
-			 tokenRange = NSMakeRange(tokenStart, tokenEnd - tokenStart);
-			 [components addObject:[self substringWithRange:tokenRange]];
-			 splits++;
-			 if (splits == maxSplits) {
-				 *stop = YES;
-				 NSRange lastTokenRange = [self rangeToEndFrom:[self firstNonWhitespaceAfterRange:tokenRange]];
-				 if (lastTokenRange.location != NSNotFound) {
-					 [components addObject:[self substringWithRange:lastTokenRange]];
-				 }
-			 }
-		 }
-	 }];
-	
-	// If we were in a token when we got to the end, add that last token.
-	if (   splits < maxSplits
-		&& currentlyInToken == YES) {
-		tokenEnd = self.length;
-	   
-		tokenRange = NSMakeRange(tokenStart,
-								 tokenEnd - tokenStart);
-		[components addObject:[self substringWithRange:tokenRange]];
-	}
-	
+	[regexp enumerateMatchesInString:self
+							 options:(NSMatchingOptions) 0
+							   range:self.fullRange
+						  usingBlock:^(NSTextCheckingResult * _Nullable result,
+									   NSMatchingFlags flags,
+									   BOOL * _Nonnull stop) {
+							  if (   dropEmptyString
+								  && result.range.length == 0) {
+								  // Nothing.
+							  } else if (components.count < maxSplits) {
+								  [components addObject:[self substringWithRange:result.range]];
+							  } else {
+								  [components addObject:[self substringWithRange:[self rangeToEndFrom:result.range]]];
+								  *stop = YES;
+							  }
+						  }];
 	return components;
 }
+
+//-(NSArray <NSString *> *) componentsSplitByWhitespaceWithMaxSplits:(NSUInteger)maxSplits {
+//	if (maxSplits == 0) {
+//		return @[ self ];
+//	}
+//
+//	NSMutableArray <NSString *> *components = [NSMutableArray array];
+//	
+//	__block NSUInteger tokenStart;
+//	__block NSUInteger tokenEnd;
+//	__block BOOL currentlyInToken = NO;
+//	__block NSRange tokenRange = NSMakeRange(NSNotFound, 0);
+//	
+//	__block NSUInteger splits = 0;
+//	
+//	[self enumerateSubstringsInRange:self.fullRange
+//							 options:NSStringEnumerationByComposedCharacterSequences
+//						  usingBlock:^(NSString *character,
+//									   NSRange characterRange,
+//									   NSRange enclosingRange,
+//									   BOOL *stop) {
+//		 if (   currentlyInToken == NO
+//			 && [character containsCharactersInSet:[[NSCharacterSet whitespaceCharacterSet] invertedSet]]
+//			 ) {
+//			 currentlyInToken = YES;
+//			 tokenStart = characterRange.location;
+//		 } else if (   currentlyInToken == YES
+//					&& [character containsCharactersInSet:[NSCharacterSet whitespaceCharacterSet]]
+//					) {
+//			 currentlyInToken = NO;
+//			 tokenEnd = characterRange.location;
+//			 
+//			 tokenRange = NSMakeRange(tokenStart,
+//									  tokenEnd - tokenStart);
+//			 [components addObject:[self substringWithRange:tokenRange]];
+//			 splits++;
+//			 if (splits == maxSplits) {
+//				 *stop = YES;
+//				 NSRange lastTokenRange = [self rangeToEndFrom:[self firstNonWhitespaceAfterRange:tokenRange]];
+//				 if (lastTokenRange.location != NSNotFound) {
+//					 [components addObject:[self substringWithRange:lastTokenRange]];
+//				 }
+//			 }
+//		 }
+//	 }];
+//	
+//	// If we were in a token when we got to the end, add that last token.
+//	if (   splits < maxSplits
+//		&& currentlyInToken == YES) {
+//		tokenEnd = self.length;
+//	   
+//		tokenRange = NSMakeRange(tokenStart,
+//								 tokenEnd - tokenStart);
+//		[components addObject:[self substringWithRange:tokenRange]];
+//	}
+//	
+//	return components;
+//}
 
 -(NSArray <NSString *> *) componentsSeparatedByString:(NSString *)separator
 											maxSplits:(NSUInteger)maxSplits {
